@@ -4,7 +4,7 @@ import { PageContextClient } from './types';
 
 type PageContext = Pick<PageContextClient, 'urlPathname'>;
 
-const pageContext = React.createContext<PageContext>({} as PageContextClient);
+const pageContext = React.createContext<PageContext>(null as never);
 
 type PageContextProviderProps = {
   context: PageContext;
@@ -16,7 +16,11 @@ export const PageContextProvider = ({ context, children }: PageContextProviderPr
 );
 
 const usePageContext = () => {
-  return useContext(pageContext);
+  const context = useContext(pageContext);
+
+  console.assert(context, 'Missing page context provider');
+
+  return context;
 };
 
 export const usePathname = () => {

@@ -1,5 +1,5 @@
 import ReactDOMServer from 'react-dom/server';
-import { dangerouslySkipEscape, escapeInject } from 'vite-plugin-ssr';
+import { dangerouslySkipEscape, escapeInject } from 'vite-plugin-ssr/server';
 
 import { PageContextProvider } from './page-context';
 import type { PageContextServer } from './types';

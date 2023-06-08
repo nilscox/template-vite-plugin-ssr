@@ -3,7 +3,7 @@ import url from 'node:url';
 
 import compression from 'compression';
 import express, { type RequestHandler } from 'express';
-import { renderPage } from 'vite-plugin-ssr';
+import { renderPage } from 'vite-plugin-ssr/server';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
