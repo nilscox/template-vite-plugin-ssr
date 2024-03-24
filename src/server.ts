@@ -1,66 +1,56 @@
 import path from 'node:path';
-import url from 'node:url';
 
-import compression from 'compression';
-import express, { type RequestHandler } from 'express';
-import { renderPage } from 'vite-plugin-ssr/server';
-
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+import express, { type Request } from 'express';
+import { renderPage } from 'vike/server';
 
 const prod = process.env.NODE_ENV === 'production';
-const host = process.env.HOST ?? 'localhost';
-const port = process.env.PORT ?? 3000;
-const root = path.resolve(__dirname, '..');
+const host = process.env.HOST || 'localhost';
+const port = Number(process.env.PORT) || 3000;
+const root = path.resolve(import.meta.dirname, '..');
 
-void startServer();
+startServer().catch((err: unknown) => {
+  // eslint-disable-next-line no-console
+  console.error(err);
+});
 
 async function startServer() {
   const app = express();
 
-  app.use(compression());
-
   if (prod) {
-    app.use(express.static(path.join(root, 'dist', 'client')));
+    app.use(express.static(`${root}/dist/client`));
   } else {
     const vite = await import('vite');
-    const viteDevServer = await vite.createServer({
-      root,
-      server: { middlewareMode: true },
-    });
 
-    app.use(viteDevServer.middlewares);
+    const viteDevMiddleware = (
+      await vite.createServer({
+        root,
+        server: { middlewareMode: true },
+      })
+    ).middlewares;
+
+    app.use(viteDevMiddleware);
   }
 
-  const handleRequest: AsyncRequestHandler = async (req, res, next) => {
-    const { httpResponse } = await renderPage({
-      urlOriginal: req.originalUrl,
-      headers: req.headers,
-    });
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+  app.all('(.*)', async (req: Request, res, next) => {
+    const pageContextInit = { urlOriginal: req.originalUrl };
+
+    const pageContext = await renderPage(pageContextInit);
+    const { httpResponse } = pageContext;
 
     if (!httpResponse) {
-      return next();
+      next();
+      return;
+    } else {
+      const { statusCode, headers } = httpResponse;
+      headers.forEach(([name, value]) => res.setHeader(name, value));
+      res.status(statusCode);
+      httpResponse.pipe(res);
     }
-
-    const { body, statusCode, contentType, earlyHints } = httpResponse;
-
-    res.writeEarlyHints?.({
-      link: earlyHints.map((e) => e.earlyHintLink),
-    });
-
-    res.status(statusCode).type(contentType).send(body);
-  };
-
-  app.get('*', asyncRequestHandler(handleRequest));
-
-  app.listen(Number(port), host, () => {
-    console.log(`Server running at http://${host}:${port}`);
   });
-}
 
-type AsyncRequestHandler = (...params: Parameters<RequestHandler>) => Promise<void>;
-
-function asyncRequestHandler(fn: AsyncRequestHandler): RequestHandler {
-  return (req, res, next) => {
-    fn(req, res, next).catch(next);
-  };
+  app.listen(port, host, () => {
+    // eslint-disable-next-line no-console
+    console.log(`Server listening on http://${host}:${port}`);
+  });
 }
